@@ -1,0 +1,13 @@
+<?xml version="1.0" ?>
+
+<repositories version="1.0">
+	<repo priority="50" quality="experimental" status="unofficial">
+		<name>gentoomaniac</name>
+		<description>my personal portage overlay</description>
+		<homepage>https://github.com/gentoomaniac/portage-overlay</homepage>
+		<owner>
+			<email>gentoomaniac@google.com</email>
+		</owner>
+		<source type="git">https://github.com/gentoomaniac/portage-overlay.git</source>
+	</repo>
+</repositories>
