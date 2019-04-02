@@ -2,7 +2,7 @@
 
 <repositories version="1.0">
 	<repo priority="50" quality="experimental" status="unofficial">
-		<name>gentoomaniac</name>
+		<name>portage-overlay</name>
 		<description>my personal portage overlay</description>
 		<homepage>https://github.com/gentoomaniac/portage-overlay</homepage>
 		<owner>
