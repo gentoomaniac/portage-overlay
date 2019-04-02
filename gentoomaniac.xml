@@ -6,7 +6,7 @@
 		<description>my personal portage overlay</description>
 		<homepage>https://github.com/gentoomaniac/portage-overlay</homepage>
 		<owner>
-			<email>gentoomaniac@google.com</email>
+			<email>gentoomaniac@gmail.com</email>
 		</owner>
 		<source type="git">https://github.com/gentoomaniac/portage-overlay.git</source>
 	</repo>
