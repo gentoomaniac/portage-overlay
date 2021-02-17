@@ -27,7 +27,7 @@ ruby_add_bdepend "test? ( dev-ruby/test-unit:2 >=dev-ruby/mocha-0.13 )"
 
 all_ruby_prepare() {
 	# Avoid bundler dependency
-	sed -i -e '/\(bundler\|:release\)/ s:^:#:' Rakefile || die
+	#sed -i -e '/\(bundler\|:release\)/ s:^:#:' Rakefile || die
 
 	sed -e "s:require_relative ':require './:" \
 		-e 's/git ls-files -z/find -print0/' \
