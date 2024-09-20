@@ -26,7 +26,6 @@ x11-libs/libnotify
 x11-libs/libXScrnSaver
 x11-libs/libXtst
 x11-misc/xdg-utils
-media-video/ffmpeg[chromium]
 "
 RDEPEND="
 acct-group/wifiman
@@ -57,21 +56,18 @@ pkg_postinst() {
   # Stop old instance
   pkill -SIGTERM -f /opt/WiFiman/wifiman-desktop
 
+
+  sudo sed -i 's;opt/WiFiman Desktop/;opt/WiFiman/;g' /usr/share/applications/wifiman-desktop.desktop
+
   ### Can't use wifiman-desktopd install/uninstall due to non-escaped path in generated .service
   cp -f /opt/WiFiman/service/wifiman-desktop.service /etc/systemd/system/
+  sudo sed -i 's;opt/WiFiman Desktop/;opt/WiFiman/;g' /etc/systemd/system/wifiman-desktop.service
 
-
-  # customised
   mkdir -p -m 775 /opt/WiFiman/tmp
   chgrp wifiman /opt/WiFiman/tmp
   chmod -R 775 /opt/WiFiman/assets
 
-  sudo chmod 4774 "/opt/WiFiman/wifiman-desktop"
-
-  sudo sed -i 's;opt/WiFiman Desktop/;opt/WiFiman/;g' /usr/share/applications/wifiman-desktop.desktop
-  sudo sed -i 's;opt/WiFiman Desktop/;opt/WiFiman/;g' /etc/systemd/system/wifiman-desktop.service
-  # end
-
+  sudo chmod 0774 "/opt/WiFiman/wifiman-desktop"
 
   ### Service
   systemctl daemon-reload
@@ -86,8 +82,8 @@ pkg_postrm() {
   # Can't use wifiman-desktopd, already removed
   systemctl stop wifiman-desktop.service
   systemctl disable wifiman-desktop.service
-  if ! [ -f /opt/WiFiman\ Desktop/wifiman-desktop ]; then
-      rm -Rf /opt/WiFiman\ Desktop/
+  if ! [ -f /opt/WiFiman/wifiman-desktop ]; then
+      rm -Rf /opt/WiFiman/
       rm -f /etc/systemd/system/wifiman-desktop.service
       systemctl daemon-reload
   fi
