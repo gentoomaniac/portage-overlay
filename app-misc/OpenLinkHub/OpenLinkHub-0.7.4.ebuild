@@ -31,18 +31,14 @@ pkg_setup() {
 }
 
 src_unpack() {
-	# Just unpack. Don't let go-module eclass try to verify yet.
 	default
 }
 
 src_prepare() {
 	default
-
-	# NOTE: We do NOT move source files here because they are already correct.
-
 	# Move vendor directory into place
 	if [[ -d "${WORKDIR}/vendor" ]]; then
-		mv "${WORKDIR}/vendor" "${S}/" || die "Could not move vendor directory"
+		mv "${WORKDIR}/vendor" "${S}/" || die
 	fi
 }
 
@@ -54,30 +50,22 @@ src_compile() {
 }
 
 src_install() {
-	# 1. Binary
+	# 1. Install Binary to standard path
 	dobin OpenLinkHub
 
-	# 2. Static Assets (Immutable) -> /usr/share
-	insinto /usr/share/${PN}
-	doins -r api openrgb static web
-
-	# 3. State Data (Mutable) -> /var/lib
+	# 2. Install ALL assets directly to /var/lib/OpenLinkHub
+	# This includes both the mutable database and the static web/api assets.
+	# The app will find them all in its working directory.
 	insinto /var/lib/${PN}
-	doins -r database
+	doins -r api database openrgb static web
 
-	# 4. Symlinks
-	dosym -r /usr/share/${PN}/api     /var/lib/${PN}/api
-	dosym -r /usr/share/${PN}/openrgb /var/lib/${PN}/openrgb
-	dosym -r /usr/share/${PN}/static  /var/lib/${PN}/static
-	dosym -r /usr/share/${PN}/web     /var/lib/${PN}/web
-
-	# 5. Udev Rules
+	# 3. Udev Rules
 	if [[ -f "99-openlinkhub.rules" ]]; then
 		sed -i 's/GROUP=".*"/GROUP="i2c"/' 99-openlinkhub.rules
 		udev_dorules 99-openlinkhub.rules
 	fi
 
-	# 6. Systemd Service
+	# 4. Systemd Service
 	cat > "${T}/${PN}.service" <<-EOF
 	[Unit]
 	Description=OpenLinkHub Corsair Control Service
@@ -86,9 +74,17 @@ src_install() {
 	[Service]
 	ExecStart=/usr/bin/OpenLinkHub
 	Restart=always
+
+	# User Management
+	# DynamicUser creates a transient user 'openlinkhub'
 	DynamicUser=yes
 	User=openlinkhub
 	SupplementaryGroups=i2c usb
+
+	# Directory Management
+	# 1. StateDirectory creates /var/lib/OpenLinkHub if missing.
+	# 2. IMPORTANT: It recursively chowns the directory to the DynamicUser on start.
+	#    This ensures the app can read/write everything we installed there.
 	StateDirectory=${PN}
 	WorkingDirectory=/var/lib/${PN}
 
@@ -102,5 +98,6 @@ src_install() {
 pkg_postinst() {
 	udev_reload
 	elog "Installation complete."
+	elog "All data files are located in: /var/lib/${PN}"
 	elog "Enable with: systemctl enable --now ${PN}"
 }
