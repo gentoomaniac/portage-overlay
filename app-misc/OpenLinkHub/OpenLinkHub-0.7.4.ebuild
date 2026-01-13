@@ -17,8 +17,10 @@ LICENSE="GPL-3"
 SLOT="0"
 KEYWORDS="~amd64"
 
+# Add the new user/group packages as dependencies
 DEPEND="
-	acct-group/i2c
+	acct-group/openlinkhub
+	acct-user/openlinkhub
 	virtual/libusb:1
 	sys-apps/i2c-tools
 "
@@ -36,7 +38,6 @@ src_unpack() {
 
 src_prepare() {
 	default
-	# Move vendor directory into place
 	if [[ -d "${WORKDIR}/vendor" ]]; then
 		mv "${WORKDIR}/vendor" "${S}/" || die
 	fi
@@ -50,22 +51,24 @@ src_compile() {
 }
 
 src_install() {
-	# 1. Install Binary to standard path
+	# 1. Binary
 	dobin OpenLinkHub
 
-	# 2. Install ALL assets directly to /var/lib/OpenLinkHub
-	# This includes both the mutable database and the static web/api assets.
-	# The app will find them all in its working directory.
+	# 2. Data Directory (/var/lib/OpenLinkHub)
 	insinto /var/lib/${PN}
 	doins -r api database openrgb static web
 
-	# 3. Udev Rules
+	# 3. Permissions
+	# We use the user created by acct-user/openlinkhub
+	fowners -R openlinkhub:openlinkhub /var/lib/${PN}
+
+	# 4. Udev Rules
 	if [[ -f "99-openlinkhub.rules" ]]; then
 		sed -i 's/GROUP=".*"/GROUP="i2c"/' 99-openlinkhub.rules
 		udev_dorules 99-openlinkhub.rules
 	fi
 
-	# 4. Systemd Service
+	# 5. Systemd Service
 	cat > "${T}/${PN}.service" <<-EOF
 	[Unit]
 	Description=OpenLinkHub Corsair Control Service
@@ -75,17 +78,11 @@ src_install() {
 	ExecStart=/usr/bin/OpenLinkHub
 	Restart=always
 
-	# User Management
-	# DynamicUser creates a transient user 'openlinkhub'
-	DynamicUser=yes
+	# Static User (Managed by acct-user)
 	User=openlinkhub
-	SupplementaryGroups=i2c usb
+	Group=openlinkhub
 
-	# Directory Management
-	# 1. StateDirectory creates /var/lib/OpenLinkHub if missing.
-	# 2. IMPORTANT: It recursively chowns the directory to the DynamicUser on start.
-	#    This ensures the app can read/write everything we installed there.
-	StateDirectory=${PN}
+	# Directory
 	WorkingDirectory=/var/lib/${PN}
 
 	[Install]
@@ -98,6 +95,6 @@ src_install() {
 pkg_postinst() {
 	udev_reload
 	elog "Installation complete."
-	elog "All data files are located in: /var/lib/${PN}"
+	elog "Service runs as user 'openlinkhub'."
 	elog "Enable with: systemctl enable --now ${PN}"
 }
