@@ -17,7 +17,6 @@ LICENSE="GPL-3"
 SLOT="0"
 KEYWORDS="~amd64"
 
-# Add the new user/group packages as dependencies
 DEPEND="
 	acct-group/openlinkhub
 	acct-user/openlinkhub
@@ -54,19 +53,27 @@ src_install() {
 	# 1. Binary
 	dobin OpenLinkHub
 
-	# 2. Data Directory (/var/lib/OpenLinkHub)
+	# 2. Data Directory
 	insinto /var/lib/${PN}
 	doins -r api database openrgb static web
 
-	# 3. Permissions
-	# We use the user created by acct-user/openlinkhub
+	# 3. Permissions (User created by acct-user package)
 	fowners -R openlinkhub:openlinkhub /var/lib/${PN}
 
-	# 4. Udev Rules
-	if [[ -f "99-openlinkhub.rules" ]]; then
-		sed -i 's/GROUP=".*"/GROUP="i2c"/' 99-openlinkhub.rules
-		udev_dorules 99-openlinkhub.rules
-	fi
+	# 4. Udev Rules (Generated)
+	# We create a catch-all rule for Vendor 1b1c (Corsair) so mice/headsets work
+	cat > "${T}/99-openlinkhub.rules" <<-EOF
+	# OpenLinkHub Rules
+	# Grant 'openlinkhub' group access to all Corsair USB devices (Vendor 1b1c)
+	# This covers Commander Pro, AIOs, Lighting Nodes, etc.
+	SUBSYSTEMS=="usb", ATTRS{idVendor}=="1b1c", GROUP="openlinkhub", MODE="0660"
+
+	# Grant access to Corsair HID devices (raw access needed for protocol)
+	# This covers Mice, Keyboards, Headsets
+	KERNEL=="hidraw*", ATTRS{idVendor}=="1b1c", GROUP="openlinkhub", MODE="0660"
+	EOF
+
+	udev_dorules "${T}/99-openlinkhub.rules"
 
 	# 5. Systemd Service
 	cat > "${T}/${PN}.service" <<-EOF
@@ -77,12 +84,8 @@ src_install() {
 	[Service]
 	ExecStart=/usr/bin/OpenLinkHub
 	Restart=always
-
-	# Static User (Managed by acct-user)
 	User=openlinkhub
 	Group=openlinkhub
-
-	# Directory
 	WorkingDirectory=/var/lib/${PN}
 
 	[Install]
@@ -96,5 +99,6 @@ pkg_postinst() {
 	udev_reload
 	elog "Installation complete."
 	elog "Service runs as user 'openlinkhub'."
+	elog "Udev rules installed for all Corsair devices (USB+HID)."
 	elog "Enable with: systemctl enable --now ${PN}"
 }
