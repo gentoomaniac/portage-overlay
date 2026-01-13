@@ -9,7 +9,7 @@ DESCRIPTION="Open source Linux interface for iCUE LINK Hub and Corsair AIOs"
 HOMEPAGE="https://github.com/jurkovic-nikola/OpenLinkHub"
 
 SRC_URI="
-	https://github.com/jurkovic-nikola/OpenLinkHub/archive/v${PV}.tar.gz -> ${P}.tar.gz
+	https://github.com/jurkovic-nikola/${PN}/archive/${PV}.tar.gz -> ${P}.tar.gz
 	${P}-vendor.tar.xz
 "
 
@@ -30,44 +30,55 @@ pkg_setup() {
 	linux-info_pkg_setup
 }
 
-# 1. OVERRIDE SRC_UNPACK
-# This is the fix. We prevent go-module.eclass from trying to verify deps
-# before we have moved the vendor directory into place.
 src_unpack() {
+	# Just unpack. Don't let go-module eclass try to verify yet.
 	default
 }
 
 src_prepare() {
 	default
 
-	# 2. Fix Directory Structure
-	# The GitHub archive unpacks to OpenLinkHub-0.7.4 (which matches S)
-	# The vendor tarball unpacks to "vendor/" in WORKDIR.
-	# We must move "vendor/" inside "OpenLinkHub-0.7.4/"
+	# NOTE: We do NOT move source files here because they are already correct.
+
+	# Move vendor directory into place
 	if [[ -d "${WORKDIR}/vendor" ]]; then
 		mv "${WORKDIR}/vendor" "${S}/" || die "Could not move vendor directory"
 	fi
 }
 
 src_compile() {
-	# 3. Force Offline Build
-	# We explicitly tell Go to use the vendor directory we just moved
 	export CGO_ENABLED=1
 	export GOFLAGS="-mod=vendor"
 	export GOPROXY=off
-
 	ego build .
 }
 
 src_install() {
+	# 1. Binary
 	dobin OpenLinkHub
 
+	# 2. Static Assets (Immutable) -> /usr/share
+	insinto /usr/share/${PN}
+	doins -r api openrgb static web
+
+	# 3. State Data (Mutable) -> /var/lib
+	insinto /var/lib/${PN}
+	doins -r database
+
+	# 4. Symlinks
+	dosym -r /usr/share/${PN}/api     /var/lib/${PN}/api
+	dosym -r /usr/share/${PN}/openrgb /var/lib/${PN}/openrgb
+	dosym -r /usr/share/${PN}/static  /var/lib/${PN}/static
+	dosym -r /usr/share/${PN}/web     /var/lib/${PN}/web
+
+	# 5. Udev Rules
 	if [[ -f "99-openlinkhub.rules" ]]; then
 		sed -i 's/GROUP=".*"/GROUP="i2c"/' 99-openlinkhub.rules
 		udev_dorules 99-openlinkhub.rules
 	fi
 
-	cat > "${T}/openlinkhub.service" <<-EOF
+	# 6. Systemd Service
+	cat > "${T}/${PN}.service" <<-EOF
 	[Unit]
 	Description=OpenLinkHub Corsair Control Service
 	After=network.target
@@ -78,18 +89,18 @@ src_install() {
 	DynamicUser=yes
 	User=openlinkhub
 	SupplementaryGroups=i2c usb
-	StateDirectory=openlinkhub
-	WorkingDirectory=/var/lib/openlinkhub
+	StateDirectory=${PN}
+	WorkingDirectory=/var/lib/${PN}
 
 	[Install]
 	WantedBy=multi-user.target
 	EOF
 
-	systemd_dounit "${T}/openlinkhub.service"
+	systemd_dounit "${T}/${PN}.service"
 }
 
 pkg_postinst() {
 	udev_reload
-	elog "Systemd 'DynamicUser' is active. Data stored in /var/lib/openlinkhub."
-	elog "Enable with: systemctl enable --now openlinkhub"
+	elog "Installation complete."
+	elog "Enable with: systemctl enable --now ${PN}"
 }
