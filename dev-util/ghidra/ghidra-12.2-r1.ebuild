@@ -19,7 +19,7 @@ KEYWORDS="amd64"
 RESTRICT="strip test"
 QA_PREBUILT="opt/ghidra/*"
 
-RDEPEND="virtual/jdk:21[-headless-awt]"
+RDEPEND="virtual/jdk:25[-headless-awt]"
 BDEPEND="app-arch/unzip"
 
 src_install() {
@@ -35,6 +35,6 @@ src_install() {
 
 pkg_postinst() {
 	elog "Start the GUI with 'ghidra' and headless analysis with"
-	elog "'ghidra-analyzeHeadless'. Both use JDK 21 from /usr/lib/jvm unless"
+	elog "'ghidra-analyzeHeadless'. Both use JDK 25 from /usr/lib/jvm unless"
 	elog "JAVA_HOME is set."
 }
